@@ -1,0 +1,118 @@
+# MediKeep stack for a single Ubuntu droplet.
+#
+# Four services on one bridge network. Only caddy publishes ports; postgres and
+# the app are reachable on the internal network only. Every persistent path is a
+# bind mount under ./data so the host owns the data outright.
+#
+# Upstream reference: https://github.com/afairgiant/MediKeep/blob/main/docker/docker-compose.yml
+
+services:
+  duckdns:
+    image: lscr.io/linuxserver/duckdns:latest
+    container_name: medikeep-duckdns
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-Asia/Singapore}
+      SUBDOMAINS: ${DUCKDNS_SUBDOMAIN}
+      TOKEN: ${DUCKDNS_TOKEN}
+      UPDATE_IP: ipv4
+      LOG_FILE: "true"
+    volumes:
+      - ./data/duckdns:/config
+    restart: unless-stopped
+    networks:
+      - medikeep-network
+
+  postgres:
+    image: postgres:15.8-alpine
+    container_name: medikeep-db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-medical_records}
+      POSTGRES_USER: ${DB_USER:-medapp}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    # Deliberately no `ports:`. Upstream publishes 5432 to the host, which on a
+    # public droplet puts the database on the internet. Reach it with
+    # `docker compose exec postgres psql ...` instead.
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USER:-medapp} -d ${DB_NAME:-medical_records}",
+        ]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - medikeep-network
+
+  medikeep-app:
+    image: ghcr.io/afairgiant/medikeep:latest
+    container_name: medikeep-app
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-medical_records}
+      DB_USER: ${DB_USER:-medapp}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env, or JWTs reset on every restart}
+      ADMIN_DEFAULT_PASSWORD: ${ADMIN_DEFAULT_PASSWORD:?set ADMIN_DEFAULT_PASSWORD in .env, or it defaults to admin123}
+      DEBUG: ${DEBUG:-false}
+      ENABLE_API_DOCS: ${ENABLE_API_DOCS:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      TZ: ${TZ:-Asia/Singapore}
+      # Caddy terminates TLS. Enabling SSL here too would only re-encrypt the
+      # internal hop to a self-signed cert Caddy would then have to be told to trust.
+      ENABLE_SSL: "false"
+      # Upstream defaults this true for LAN installs. This instance is
+      # internet-exposed, so keep SSRF protection on.
+      ALLOW_PRIVATE_INTEGRATION_URLS: ${ALLOW_PRIVATE_INTEGRATION_URLS:-false}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      # TRUSTED_PROXY_IPS is left unset on purpose: unset trusts the private
+      # ranges, which is exactly where the caddy container connects from.
+    volumes:
+      - ./data/uploads:/app/uploads
+      - ./data/logs:/app/logs
+      - ./data/backups:/app/backups
+    # Deliberately no `ports:`. The app is reachable only through caddy.
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 120s
+      timeout: 15s
+      retries: 2
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - medikeep-network
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: medikeep-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy/data:/data # ACME account + issued certs, must persist
+      - ./data/caddy/config:/config
+    depends_on:
+      - medikeep-app
+    restart: unless-stopped
+    networks:
+      - medikeep-network
+
+networks:
+  medikeep-network:
+    driver: bridge

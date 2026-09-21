@@ -1,0 +1,8 @@
+# Secrets: DB password, JWT signing key, DuckDNS token (a DNS takeover credential).
+.env
+deploy/.env
+**/.env
+!deploy/.env.example
+
+# Runtime state that belongs on the droplet, not in git.
+deploy/data/
