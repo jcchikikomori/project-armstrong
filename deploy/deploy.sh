@@ -27,6 +27,23 @@ die() {
 	exit 1
 }
 
+# A fresh droplet runs unattended-upgrades on first boot, which holds the dpkg
+# lock for a minute or two. Without this wait, apt-get fails with
+# "Could not get lock /var/lib/dpkg/lock-frontend".
+wait_for_apt() {
+	local waited=0
+	while pgrep -x unattended-upgr >/dev/null 2>&1 ||
+		pgrep -x apt-get >/dev/null 2>&1 ||
+		pgrep -x dpkg >/dev/null 2>&1; do
+		[ "$waited" -eq 0 ] && info "waiting for another apt/dpkg process to finish"
+		sleep 5
+		waited=$((waited + 5))
+		[ "$waited" -ge 600 ] && die "apt/dpkg still locked after 600s; check with: ps aux | grep -E 'apt|dpkg'"
+	done
+	[ "$waited" -gt 0 ] && info "apt lock released after ${waited}s"
+	return 0
+}
+
 usage() {
 	cat <<'USAGE'
 Usage: deploy.sh --domain <sub>.duckdns.org --duckdns-token <token> --email <addr> [options]
@@ -118,6 +135,7 @@ info "install:   $STACK_DIR"
 # --- 2. Base packages -----------------------------------------------------
 log "2/10 Base packages"
 export DEBIAN_FRONTEND=noninteractive
+wait_for_apt
 apt-get update -qq
 apt-get install -y -qq ca-certificates curl gnupg jq ufw cron dnsutils >/dev/null
 info "installed ca-certificates curl gnupg jq ufw cron dnsutils"
@@ -143,6 +161,7 @@ else
 	printf 'deb [arch=%s signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu %s stable\n' \
 		"$arch" "$codename" >/etc/apt/sources.list.d/docker.list
 
+	wait_for_apt
 	apt-get update -qq
 	apt-get install -y -qq docker-ce docker-ce-cli containerd.io \
 		docker-buildx-plugin docker-compose-plugin >/dev/null
