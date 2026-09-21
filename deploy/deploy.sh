@@ -27,21 +27,25 @@ die() {
 	exit 1
 }
 
-# A fresh droplet runs unattended-upgrades on first boot, which holds the dpkg
-# lock for a minute or two. Without this wait, apt-get fails with
+# A fresh droplet runs unattended-upgrades on first boot, so apt-get loses a
+# race for the dpkg lock and fails with
 # "Could not get lock /var/lib/dpkg/lock-frontend".
-wait_for_apt() {
-	local waited=0
-	while pgrep -x unattended-upgr >/dev/null 2>&1 ||
-		pgrep -x apt-get >/dev/null 2>&1 ||
-		pgrep -x dpkg >/dev/null 2>&1; do
-		[ "$waited" -eq 0 ] && info "waiting for another apt/dpkg process to finish"
-		sleep 5
-		waited=$((waited + 5))
-		[ "$waited" -ge 600 ] && die "apt/dpkg still locked after 600s; check with: ps aux | grep -E 'apt|dpkg'"
+#
+# DPkg::Lock::Timeout (apt 1.9.11+, so every supported Ubuntu) makes apt wait
+# for that lock instead of failing. The retry loop covers the separate lists
+# lock that `apt-get update` takes, which that option does not govern.
+#
+# Do NOT try to detect this by process name: unattended-upgrade-shutdown runs
+# permanently waiting for a shutdown signal, and its comm truncates to
+# "unattended-upgr", so a pgrep check matches forever and never clears.
+apt_retry() {
+	local tries=0
+	until apt-get -o DPkg::Lock::Timeout=600 "$@"; do
+		tries=$((tries + 1))
+		[ "$tries" -ge 10 ] && die "apt-get $* failed after 10 attempts; check with: ps aux | grep -E 'apt|dpkg'"
+		info "apt is busy, retrying in 15s (attempt $tries/10)"
+		sleep 15
 	done
-	[ "$waited" -gt 0 ] && info "apt lock released after ${waited}s"
-	return 0
 }
 
 usage() {
@@ -135,9 +139,8 @@ info "install:   $STACK_DIR"
 # --- 2. Base packages -----------------------------------------------------
 log "2/10 Base packages"
 export DEBIAN_FRONTEND=noninteractive
-wait_for_apt
-apt-get update -qq
-apt-get install -y -qq ca-certificates curl gnupg jq ufw cron dnsutils >/dev/null
+apt_retry update -qq
+apt_retry install -y -qq ca-certificates curl gnupg jq ufw cron dnsutils >/dev/null
 info "installed ca-certificates curl gnupg jq ufw cron dnsutils"
 
 # --- 3. Timezone ----------------------------------------------------------
@@ -161,9 +164,8 @@ else
 	printf 'deb [arch=%s signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu %s stable\n' \
 		"$arch" "$codename" >/etc/apt/sources.list.d/docker.list
 
-	wait_for_apt
-	apt-get update -qq
-	apt-get install -y -qq docker-ce docker-ce-cli containerd.io \
+	apt_retry update -qq
+	apt_retry install -y -qq docker-ce docker-ce-cli containerd.io \
 		docker-buildx-plugin docker-compose-plugin >/dev/null
 	systemctl enable --now docker
 	info "installed $(docker compose version --short)"
