@@ -50,6 +50,30 @@ The script installs Docker, locks down `ufw`, generates random secrets into
 Everything else (layout on the droplet, backups, restore, updates, verification) lives in
 **[deploy/README.md](deploy/README.md)**.
 
+## Importing the Google Sheets history
+
+My health tracking started as a Google Form feeding a spreadsheet, so the
+history predates this droplet by two years. `import/` migrates it: seven CSV
+exports in `datasets/` become 414 MediKeep records over the REST API.
+
+MediKeep ships no generic CSV import -- the one importer it has is vitals-only
+and hardcoded to Dexcom -- so this is a client, not a patch. It runs in Docker
+and is safe to re-run; a SQLite ledger keyed on `<file>:<row_index>` means a
+second pass creates nothing.
+
+```bash
+export MEDIKEEP_PASSWORD='...'
+docker compose -f import/docker-compose.yml run --rm importer plan      # dry run
+docker compose -f import/docker-compose.yml run --rm importer apply --yes
+```
+
+The interesting part was not the HTTP. The CSVs are event logs and MediKeep is
+a record store, and 508 of the 688 tracker rows are medication _dose events_ --
+one per swallow, against a table that holds one row per drug. Those, plus the
+sleep, food, insights and persona rows, go to `datasets/derived/*.json` with
+full fidelity instead of being forced into a schema that would misrepresent
+them. Details and the full mapping are in **[import/README.md](import/README.md)**.
+
 ## Getting the data out
 
 Bind-mounting the Postgres data directory gives you binary heap files, not records, which
