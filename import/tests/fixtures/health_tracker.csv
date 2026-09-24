@@ -1,0 +1,8 @@
+Timestamp,Email Address,Anong nararamdaman mo ngayon?,How are you feeling?,I-explain mo (Additional Remarks),Medicine type,What brand?,Number of milligrams?,What period?,How are you feeling,SYSTOLIC mm Hg (top/upper number),DIASTOLIC mm Hg (bottom/lower number),Blood Oxygen (%SpO2 in percentage),Heart rate
+1/18/2026 20:17:08,a@example.com,I'm logging my BP results,,,,,,Evening,Feeling okay!,129,80,119,98
+5/12/2026 9:05:00,a@example.com,I'm logging my BP results,,,,,,Evening (2026-05-12),A bit okay...,120,75,97,88
+1/21/2026 19:02:16,a@example.com,May naramdaman ako,"Dizzy/Nahihilo, Aches (mostly Headache, otherwise use ""Other""), Nilalamig sa aircon, bit of a headache",Nakatayo lang ako.,,,,,,,,,
+2/02/2026 08:00:00,a@example.com,May naramdaman ako,Numbness on my left pointy finger,,,,,,,,,,
+3/03/2026 11:11:11,a@example.com,"Parang ""mamamatay"" na ako (EMS)",Chest Pains,Sobrang sakit.,,,,,,,,,
+1/21/2026 13:27:37,a@example.com,I'm logging my medication,,,With prescription,Vitamin B Complex,200,,,,,,
+1/22/2026 8:57:42,a@example.com,Gusto ko i-record tulog ko,,,,,,,,,,,

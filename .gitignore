@@ -10,3 +10,7 @@ deploy/data/
 # datasets in a CSV format
 datasets/*.csv
 !datasets/.gitinclude
+
+# Derived JSON and the import ledger: the same medical records in a different
+# shape, plus persona.csv content that should not leave this machine.
+datasets/derived/

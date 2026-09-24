@@ -1,0 +1,5 @@
+Item,Description,Doctor/Specialist,Reported Date,Remarks
+Consultation,"Line one
+Line two with ""quotes"" inside.","Jane A. Doe, M.D.",6/15/2026 18:13:12,"Follow up in
+August."
+No date row,Something,,,

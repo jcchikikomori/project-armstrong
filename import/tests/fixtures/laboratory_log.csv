@@ -1,0 +1,8 @@
+Date,Category,Test Name,Result,Unit,Reference Range,Status,Remarks
+2024-01-06,Hematology,WBC,7.65,10^9/L,4.50 - 10.00,Normal,
+2024-01-06,Hematology,RBC,5.2,X10^12/L,4.00~6.00,Normal,
+2024-01-06,Chem,Creatinine,80,umol/L,< 106,Normal,"Fine, monitor lang."
+2024-01-06,Clinical Microscopy,Protein,POSITIVE,,NEGATIVE,High,
+2024-01-06,Sero,HBsAg,0.10 Nonreactive,S/CO,-,Normal,
+2026-06-04,Ultra,Liver ultrasound,Steatosis,N/A,N/A,Abnormal,
+2026-06-04,Mystery,Unknown panel,42,ml,≥60.0,Weird,

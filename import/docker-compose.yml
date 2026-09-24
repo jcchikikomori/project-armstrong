@@ -1,0 +1,27 @@
+services:
+  importer:
+    build: .
+    container_name: medikeep-importer
+    # The app container publishes no ports -- deliberately, see
+    # deploy/docker-compose.yml -- so the importer joins its network and
+    # reaches it by service name instead.
+    networks: [medikeep-network]
+    environment:
+      # Read from the host environment. Never put the password in this file
+      # and never pass it as an argument. Unset is fine for `plan`, `sidecar`
+      # and the tests; `apply` checks for it and says so.
+      MEDIKEEP_PASSWORD: ${MEDIKEEP_PASSWORD:-}
+      PYTHONPATH: /app
+    volumes:
+      # Read-write because `sidecar` and the ledger write into datasets/derived/.
+      - ../datasets:/data
+    working_dir: /app
+
+networks:
+  medikeep-network:
+    # Created by deploy/docker-compose.yml, which means Compose prefixes it
+    # with that stack's project name -- `medikeep_medikeep-network` on the
+    # droplet, something else for a local test stack. Find it with
+    # `docker network ls | grep medikeep` and set MEDIKEEP_NETWORK to match.
+    external: true
+    name: ${MEDIKEEP_NETWORK:-medikeep_medikeep-network}

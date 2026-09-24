@@ -1,0 +1,6 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -p no:cacheprovider --cov=medikeep_import --cov-report=term-missing --cov-fail-under=95"
+
+[tool.coverage.run]
+omit = ["medikeep_import/__main__.py"]
