@@ -6,3 +6,7 @@ deploy/.env
 
 # Runtime state that belongs on the droplet, not in git.
 deploy/data/
+
+# datasets in a CSV format
+datasets/*.csv
+!datasets/.gitinclude
